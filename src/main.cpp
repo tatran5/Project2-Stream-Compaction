@@ -29,6 +29,13 @@ int main(int argc, char* argv[]) {
 
   genArray(SIZE - 1, a, 50);  // Leave a 0 at the end to test that edge case
   a[SIZE - 1] = 0;
+ /* a[0] = 1;
+  a[1] = 4;
+  a[2] = 9;
+  a[3] = 0;
+  a[4] = 2;
+  a[5] = 1;
+  a[6] = 4;*/
   printArray(SIZE, a, true);
 
   // initialize b using StreamCompaction::CPU::scan you implement
@@ -104,6 +111,13 @@ int main(int argc, char* argv[]) {
 
   genArray(SIZE - 1, a, 4);  // Leave a 0 at the end to test that edge case
   a[SIZE - 1] = 0;
+ /* a[0] = 1;
+  a[1] = 4;
+  a[2] = 9;
+  a[3] = 0;
+  a[4] = 2;
+  a[5] = 1;
+  a[6] = 4;*/
   printArray(SIZE, a, true);
 
   int count, expectedCount, expectedNPOT;
