@@ -8,7 +8,7 @@ CUDA Stream Compaction
 * Tested on: Windows 10, i7-8750H @ 2.20GHz 22GB, GTX 1070
 
 # Scan, Stream Compaction and Radix Sort
-![].(images/main.png)
+![].(img/main.png)
 
 ## Performance Analysis
 
@@ -16,10 +16,11 @@ The runtime of the naive method on GPU is worst, followed by that of CPU, then G
 
 Both the naive and work-efficient method on the GPU only rely on global memory instead of ultilizing shared memory, which potentially lead to much slower runtime than thrust method (and CPU for the naive method.) Naive and work-efficient methods also do not use up the potential of warp partitioning or memory coalescing, which are features that thrust may have to reduce its runtime. 
 
-![](images/Scan runtime.png)
+![](img/Scan runtime.png)
 
 The same explanation above is applicable to the below as well. 
-![](images/Stream compaction runtime.png)
+
+![](img/Stream compaction runtime.png)
 
 
 Commparisons of GPU Scan implementations:
