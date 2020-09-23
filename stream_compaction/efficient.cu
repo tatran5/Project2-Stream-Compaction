@@ -53,29 +53,43 @@ namespace StreamCompaction {
           data[n - 1] = 0;
         }
 
+        __global__ void formatFinalData(int n, int* odata, const int* idata) {
+          int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+          if (index >= n) {
+            return;
+          }
+          odata[index] = idata[index];
+        }
+
 
         /**
          * Performs prefix-sum (aka scan) on idata, storing the result into odata.
          */
         void scan(int n, int *odata, const int *idata) {
-            //timer().startGpuTimer();
-            // TODO
+          // Calculate the number of elements the input can be treated as an array with a power of two elements
+          int kernelInvokeCount = ilog2ceil(n);
+          int n2 = (int)pow(2, kernelInvokeCount);
+          
+          // Declare, allocate, and transfer data on gpu from cpu
+            int* dev_odata;
+            int* dev_odata2;
+
+            cudaMalloc((void**)&dev_odata, n2 * sizeof(int));
+            checkCUDAError("cudaMalloc dev_odata failed!");
+            
+            cudaMalloc((void**)&dev_odata2, n2 * sizeof(int));
+            checkCUDAError("cudaMalloc dev_odata2 failed!");
+
+            cudaMemcpy(dev_odata, idata, sizeof(int) * n, cudaMemcpyHostToDevice);
+            checkCUDAError("cudaMemcpy idata to dev_odata failed!");
+
             if (n < 1) {
               return;
             }
-            // Calculate the number of elements the input can be treated as an array with a power of two elements
-            int kernelInvokeCount = ilog2ceil(n);
-            int n2 = (int) pow(2, kernelInvokeCount);
+            timer().startGpuTimer();
 
             int blockSize = 128;
             dim3 blockCount((n2 + blockSize - 1) / blockSize);
-
-            // Declare, allocate, and transfer data on gpu from cpu
-            int* dev_odata;
-            cudaMalloc((void**)&dev_odata, n2 * sizeof(int));
-            checkCUDAError("cudaMalloc dev_odata failed!");
-            cudaMemcpy(dev_odata, idata, sizeof(int) * n, cudaMemcpyHostToDevice);
-            checkCUDAError("cudaMemcpy dev_odata failed!");
 
             // Format input data (pad 0s to the closest power of two elements, inclusively)
             StreamCompaction::Common::formatInitData << <blockCount, blockSize >> > (n, n2, dev_odata);
@@ -90,19 +104,21 @@ namespace StreamCompaction {
             for (int i = kernelInvokeCount - 1; i >= 0; i--) {
               int offset = (int) pow(2, i + 1);
               downSweep << <blockCount, blockSize >> > (n2, offset, dev_odata);
-              // Transfer data from gpu to cpu
-              cudaMemcpy(odata, dev_odata, sizeof(int) * n, cudaMemcpyDeviceToHost);
-              checkCUDAError("cudaMemcpy dev_odata failed!");
             }
 
+            formatFinalData << < blockCount, blockSize >> > (n, dev_odata2, dev_odata);
+
+            timer().endGpuTimer();
+
             // Transfer data from gpu to cpu
-            cudaMemcpy(odata, dev_odata, sizeof(int) * n, cudaMemcpyDeviceToHost);
-            checkCUDAError("cudaMemcpy dev_odata failed!");
+            cudaMemcpy(odata, dev_odata2, sizeof(int) * n, cudaMemcpyDeviceToHost);
+            checkCUDAError("cudaMemcpy dev_odata to odata failed!");
 
             cudaFree(dev_odata);
             checkCUDAError("cudaFree dev_odata failed!");
 
-            //timer().endGpuTimer();
+            cudaFree(dev_odata2);
+            checkCUDAError("cudaFree dev_odata2 failed!");
         }
 
         /**
@@ -115,7 +131,7 @@ namespace StreamCompaction {
          * @returns      The number of elements remaining after compaction.
          */
         int compact(int n, int *odata, const int *idata) {
-            timer().startGpuTimer();
+            //timer().startGpuTimer();
             
             // TODO
             
@@ -173,7 +189,7 @@ namespace StreamCompaction {
             int remaining = bools[n - 1] == 1? indices[n - 1] : indices[n - 1] - 1;
             remaining++; 
 
-            timer().endGpuTimer();
+            //timer().endGpuTimer();
             return remaining;
         }
     }

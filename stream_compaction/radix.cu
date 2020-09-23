@@ -105,19 +105,11 @@ namespace StreamCompaction {
           std::cout << "largest number of bits: " << largestNumBit << std::endl;
           // Compute array which is true/false for bit n
           for (int i = 0; i < largestNumBit; i++) {
-            std::cout << "Bit: " << i << std::endl;
             computeBoolsForBits << <blockCount, blockSize >> > (n, i, dev_idata, dev_bools0, dev_bools1);
             StreamCompaction::Efficient::scan(n, dev_falseAddresses, dev_bools0);
             computeTotalFalses << <blockCount, blockSize >> > (n, dev_totalFalses, dev_bools0, dev_falseAddresses);
             computeAddressForTrueKeys << <blockCount, blockSize >> > (n, dev_totalFalses, dev_trueAddresses, dev_falseAddresses);
             computeAddresses << <blockCount, blockSize >> > (n, dev_bools1, dev_trueAddresses, dev_falseAddresses, dev_addresses);
-
-            /*cudaMemcpy(odata, dev_addresses, sizeof(int) * n, cudaMemcpyDeviceToHost);
-            checkCUDAError("cudaMemcpy dev_odata failed!");
-
-            std::cout << "Add: " << std::endl;
-            for (int j = 0; j < n; j++) std::cout << i << ": " << odata[j] << std::endl;*/
-
             scatter << <blockCount, blockSize >> > (n, dev_odata, dev_idata, dev_addresses);
             
             int* temp = dev_idata;
@@ -131,13 +123,21 @@ namespace StreamCompaction {
 
           // Cleanup
           cudaFree(dev_addresses);
+          checkCUDAError("cudaFree dev_addresses failed!");
           cudaFree(dev_bools0);
+          checkCUDAError("cudaFree dev_bools0 failed!");
           cudaFree(dev_bools1);
+          checkCUDAError("cudaFree dev_bools1 failed!");
           cudaFree(dev_falseAddresses);
+          checkCUDAError("cudaFree dev_falseAddresses failed!");
           cudaFree(dev_idata);
+          checkCUDAError("cudaFree dev_idata failed!");
           cudaFree(dev_odata);
+          checkCUDAError("cudaFree dev_odata failed!");
           cudaFree(dev_trueAddresses);
+          checkCUDAError("cudaFree dev_trueAddresses failed!");
           cudaFree(dev_totalFalses);
+          checkCUDAError("cudaFree dev_totalFalses failed!");
         }
     }
 }

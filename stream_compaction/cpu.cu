@@ -19,7 +19,7 @@ namespace StreamCompaction {
          */
         void scan(int n, int *odata, const int *idata) {
           // Compute exclusive prefix sum
-            // timer().startCpuTimer();
+            //timer().startCpuTimer();
             // TODO
             if (n < 0) {
               return;
@@ -28,7 +28,7 @@ namespace StreamCompaction {
             for (int i = 1; i < n; i++) {
               odata[i] = odata[i - 1] + idata[i - 1];
             }
-            // timer().endCpuTimer();
+            //timer().endCpuTimer();
         }
 
         /**

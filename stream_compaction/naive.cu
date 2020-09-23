@@ -44,17 +44,12 @@ namespace StreamCompaction {
 
         // Careful with non-power of 2
         void scan(int n, int *odata, const int *idata) {
-            timer().startGpuTimer();
-            // TODO
             if (n < 1) {
               return;
             }
             // Calculate the number of elements the input can be treated as an array with a power of two elements
             int kernelInvokeCount = ilog2ceil(n);
             int n2 = pow(2, kernelInvokeCount);
-
-            int blockSize = 128;
-            dim3 blockCount((n2 + blockSize - 1) / blockSize);
             
             // Declare data to be on the gpu
             int* dev_odata;
@@ -71,6 +66,11 @@ namespace StreamCompaction {
             // Transfer data from cpu to gpu
             cudaMemcpy(dev_idata, idata, sizeof(int) * n, cudaMemcpyHostToDevice);
             checkCUDAError("cudaMemcpy dev_idata failed!");
+
+            timer().startGpuTimer();
+
+            int blockSize = 128;
+            dim3 blockCount((n2 + blockSize - 1) / blockSize);
 
             // Format input data (pad 0s to the closest power of two elements, inclusively)
             StreamCompaction::Common::formatInitData << <blockCount, blockSize >> > (n, n2, dev_idata);
@@ -96,7 +96,7 @@ namespace StreamCompaction {
             cudaFree(dev_odata);
             checkCUDAError("cudaFree dev_odata failed!");
             cudaFree(dev_idata);
-            checkCUDAError("cudaFree dev_tdata failed!");
+            checkCUDAError("cudaFree dev_idata failed!");
             
             // Calculate the number of blocks and threads per block
             timer().endGpuTimer();
