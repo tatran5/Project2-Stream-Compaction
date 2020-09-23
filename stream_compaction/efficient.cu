@@ -13,15 +13,21 @@ namespace StreamCompaction {
             return timer;
         }
 
-        /* Copy initial data over and pad 0's if out of scope of initial size
-         * aka the input array has a smaller initial size than the final array,
-         * and anything larger than index [size of input array] will be 0 in the output array
-         */
-        __global__ void formatInitData(int initSize, int finalSize, int* data) {
-          int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-          if (index >= initSize && index < finalSize) {
-            data[index] = 0;
+       __global__ void upSweepEfficient(int n, int offset, int sDataSize, int* data) {
+          extern __shared__ int sData[];
+          int tIdx = threadIdx.x;
+          sData[tIdx] = data[blockIdx.x * blockDim.x + tIdx];
+          for (int stride = blockDim.x / 2; stride > 0; stride /= 2) {
+            if (tIdx < stride) {
+              __syncthreads();
+              int s1 = sData[2 * tIdx];
+              int s2 = sData[2 * tIdx + 1];
+              __syncthreads();
+              sData[tIdx] = s1 + s2;
+            }
           }
+          __syncthreads();
+          data[blockIdx.x * blockDim.x + tIdx] = sData[sDataSize - tIdx];
         }
 
         __global__ void upSweep(int n, int offset, int* data) {
@@ -47,18 +53,6 @@ namespace StreamCompaction {
           data[n - 1] = 0;
         }
 
-        __global__ void shiftRight(int n, int* data) {
-          int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-          if (index >= n) {
-            return;
-          }
-          if (index == 0) {
-            data[index] = 0;
-          }
-          else {
-            data[index] = data[index - 1];
-          }
-        }
 
         /**
          * Performs prefix-sum (aka scan) on idata, storing the result into odata.
@@ -71,7 +65,7 @@ namespace StreamCompaction {
             }
             // Calculate the number of elements the input can be treated as an array with a power of two elements
             int kernelInvokeCount = ilog2ceil(n);
-            int n2 = pow(2, kernelInvokeCount);
+            int n2 = (int) pow(2, kernelInvokeCount);
 
             int blockSize = 128;
             dim3 blockCount((n2 + blockSize - 1) / blockSize);
@@ -84,17 +78,17 @@ namespace StreamCompaction {
             checkCUDAError("cudaMemcpy dev_odata failed!");
 
             // Format input data (pad 0s to the closest power of two elements, inclusively)
-            formatInitData << <blockCount, blockSize >> > (n, n2, dev_odata);
+            StreamCompaction::Common::formatInitData << <blockCount, blockSize >> > (n, n2, dev_odata);
 
             for (int i = 0; i <= kernelInvokeCount; i++) {
-              int offset = pow(2, i + 1);
+              int offset = (int) pow(2, i + 1);
               upSweep << <blockCount, blockSize >> > (n2, offset, dev_odata);
             }
 
             setLastElementZero << <blockCount, blockSize >> > (n2, dev_odata);
 
             for (int i = kernelInvokeCount - 1; i >= 0; i--) {
-              int offset = pow(2, i + 1);
+              int offset = (int) pow(2, i + 1);
               downSweep << <blockCount, blockSize >> > (n2, offset, dev_odata);
               // Transfer data from gpu to cpu
               cudaMemcpy(odata, dev_odata, sizeof(int) * n, cudaMemcpyDeviceToHost);

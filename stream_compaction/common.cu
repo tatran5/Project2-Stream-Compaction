@@ -47,5 +47,28 @@ namespace StreamCompaction {
           }
         }
 
+        __global__ void shiftRight(int n, int* idata, int* odata) {
+          int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+          if (index >= n) {
+            return;
+          }
+          if (index == 0) {
+            odata[index] = 0;
+          }
+          else {
+            odata[index] = idata[index - 1];
+          }
+        }
+
+        /* Copy initial data over and pad 0's if out of scope of initial size
+        * aka the input array has a smaller initial size than the final array,
+        * and anything larger than index [size of input array] will be 0 in the output array
+        */
+        __global__ void formatInitData(int initSize, int finalSize, int* data) {
+          int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+          if (index >= initSize && index < finalSize) {
+            data[index] = 0;
+          }
+        }
     }
 }

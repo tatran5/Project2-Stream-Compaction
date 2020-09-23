@@ -11,9 +11,10 @@
 #include <stream_compaction/naive.h>
 #include <stream_compaction/efficient.h>
 #include <stream_compaction/thrust.h>
+#include <stream_compaction/radix.h>
 #include "testing_helpers.hpp"
 
-const int SIZE = 1 << 8; // feel free to change the size of array
+const int SIZE =  1 << 8; // feel free to change the size of array
 const int NPOT = SIZE - 3; // Non-Power-Of-Two
 int* a = new int[SIZE];
 int* b = new int[SIZE];
@@ -160,6 +161,22 @@ int main(int argc, char* argv[]) {
   printElapsedTime(StreamCompaction::Efficient::timer().getGpuElapsedTimeForPreviousOperation(), "(CUDA Measured)");
   //printArray(count, c, true);
   printCmpLenResult(count, expectedNPOT, b, c);
+
+  printf("\n");
+  printf("*****************************\n");
+  printf("** RADIX SORT TESTS **\n");
+  printf("*****************************\n");
+
+  genArray(SIZE - 1, a, 50);
+  printArray(SIZE, a, true);
+  std::copy(a, a + SIZE, b);
+  std::sort(b, b + SIZE);
+  StreamCompaction::Radix::sort(SIZE, c, a);
+  std::cout << "Correctly sorted:" << std::endl;
+  printArray(SIZE, b, true);
+  std::cout << "Yours:" << std::endl;
+  printArray(SIZE, c, true);
+  printCmpResult(SIZE, b, c);
 
   system("pause"); // stop Win32 console from closing on exit
   delete[] a;

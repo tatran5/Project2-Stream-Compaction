@@ -42,18 +42,6 @@ namespace StreamCompaction {
           }
         }
 
-        __global__ void shiftRight(int n, int* data) {
-          int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-          if (index >= n) {
-            return;
-          }
-          if (index == 0) {
-            data[index] = 0;
-          } else  {
-            data[index] = data[index - 1];
-          }
-        }
-
         // Careful with non-power of 2
         void scan(int n, int *odata, const int *idata) {
             timer().startGpuTimer();
@@ -70,36 +58,36 @@ namespace StreamCompaction {
             
             // Declare data to be on the gpu
             int* dev_odata;
-            int* dev_tdata;
+            int* dev_idata;
             std::unique_ptr<int[]> tdata{ new int[n2] };
 
             // Allocate data to be on the gpu
             cudaMalloc((void**)&dev_odata, n2 * sizeof(int));
             checkCUDAError("cudaMalloc dev_odata failed!");
             
-            cudaMalloc((void**)&dev_tdata, n2 * sizeof(int));
+            cudaMalloc((void**)&dev_idata, n2 * sizeof(int));
             checkCUDAError("cudaMalloc dev_tdata failed!");
 
             // Transfer data from cpu to gpu
-            cudaMemcpy(dev_odata, idata, sizeof(int) * n2, cudaMemcpyHostToDevice);
-            checkCUDAError("cudaMemcpy dev_odata failed!");
+            cudaMemcpy(dev_idata, idata, sizeof(int) * n, cudaMemcpyHostToDevice);
+            checkCUDAError("cudaMemcpy dev_idata failed!");
 
             // Format input data (pad 0s to the closest power of two elements, inclusively)
-            formatInitData << <blockCount, blockSize >> > (n, n2, dev_odata);
+            StreamCompaction::Common::formatInitData << <blockCount, blockSize >> > (n, n2, dev_idata);
 
             std::cout << "kernel invoke count: " << kernelInvokeCount << std::endl;
 
             for (int i = 1; i <= kernelInvokeCount; i++) {
               int ignoreIndexCount = pow(2, i - 1);
-              add << <blockCount, blockSize >> > (n2, ignoreIndexCount, dev_tdata, dev_odata);
+              add << <blockCount, blockSize >> > (n2, ignoreIndexCount, dev_odata, dev_idata);
 
-              int* temp = dev_tdata;
-              dev_tdata = dev_odata;
+              int* temp = dev_idata;
+              dev_idata = dev_odata;
               dev_odata = temp;
             }
 
             // Shift things to the right to make the inclusive can into exclusive scan
-            shiftRight << <blockCount, blockSize >> > (n, dev_odata);
+            StreamCompaction::Common::shiftRight<< <blockCount, blockSize >> > (n, dev_idata, dev_odata);
 
             // Transfer data from gpu to cpu
             cudaMemcpy(odata, dev_odata, sizeof(int) * n, cudaMemcpyDeviceToHost);
@@ -107,7 +95,7 @@ namespace StreamCompaction {
 
             cudaFree(dev_odata);
             checkCUDAError("cudaFree dev_odata failed!");
-            cudaFree(dev_tdata);
+            cudaFree(dev_idata);
             checkCUDAError("cudaFree dev_tdata failed!");
             
             // Calculate the number of blocks and threads per block
