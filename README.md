@@ -8,7 +8,7 @@ CUDA Stream Compaction
 * Tested on: Windows 10, i7-8750H @ 2.20GHz 22GB, GTX 1070
 
 # Scan, Stream Compaction and Radix Sort
-![].(img/main.png)
+![](img/cover.png)
 
 ## Performance Analysis
 
