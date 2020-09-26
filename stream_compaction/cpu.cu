@@ -69,7 +69,7 @@ namespace StreamCompaction {
             int o = 0;
             for (int i = 0; i < n; i++) {
               if (bdata[i] == 1) {
-                odata[o] = idata[i];
+                odata[sdata[i]] = idata[i];
                 o++;
               }
             }
